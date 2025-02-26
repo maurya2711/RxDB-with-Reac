@@ -18,35 +18,41 @@ import { getRxStorageMemory } from "rxdb/plugins/storage-memory";
 // addRxPlugin(PouchDBAdapterIdb);
 // addRxPlugin(PouchDBAdapterHttp);
 // addRxPlugin(wrappedValidateAjvStorage);
-// ... existing code ...
+// addRxPlugin(wrappedKeyCompressionStorage);
+// addRxPlugin(wrappedKeyEncryptionCryptoJsStorage);
 addRxPlugin(RxDBDevModePlugin);
 disableWarnings();
 const dbName = "businessesdb";
 let dbInstance = null; // Track the database instance
 
 const businessSchema = {
-  title: "business schema",
+  keyCompression: true,
   version: 0,
+  title: "business schema",
+  primaryKey: "id",
   type: "object",
   properties: {
     id: {
       type: "string",
-      primary: true,
+      maxLength: 100,
     },
     name: {
       type: "string",
     },
   },
+  required: ["id", "name"],
 };
 
 const articleSchema = {
-  title: "article schema",
+  keyCompression: true,
   version: 0,
+  title: "article schema",
+  primaryKey: "id",
   type: "object",
   properties: {
     id: {
       type: "string",
-      primary: true,
+      maxLength: 100,
     },
     name: {
       type: "string",
@@ -61,6 +67,7 @@ const articleSchema = {
       type: "string",
     },
   },
+  required: ["id", "name", "qty", "selling_price", "business_id"],
 };
 
 const createDatabase = async () => {
@@ -69,23 +76,8 @@ const createDatabase = async () => {
     return dbInstance; // Return the existing instance
   }
 
-  // Check if the database already exists in the environment
-  try {
-    const existingDb = await createRxDatabase({
-      name: dbName,
-      storage: getRxStorageMemory(),
-    });
-    if (existingDb) {
-      dbInstance = existingDb; // Use the existing instance
-      return dbInstance;
-    }
-  } catch (error) {
-    // Ignore the error if the database does not exist
-    console.warn("Database does not exist, creating a new one.");
-  }
-
   // Create a new database instance
-  const db = await createRxDatabase({
+  dbInstance = await createRxDatabase({
     name: dbName,
     storage: wrappedValidateAjvStorage({
       storage: wrappedKeyCompressionStorage({
@@ -94,9 +86,10 @@ const createDatabase = async () => {
         }),
       }),
     }),
+    ignoreDuplicate: true,
   });
 
-  await db.addCollections({
+  await dbInstance.addCollections({
     businesses: {
       schema: businessSchema,
     },
@@ -105,8 +98,7 @@ const createDatabase = async () => {
     },
   });
 
-  dbInstance = db; // Store the created instance
-  return db;
+  return dbInstance;
 };
 
 export { createDatabase, replicateRxCollection };
